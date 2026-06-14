@@ -1,24 +1,13 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/proxy.js",
-      "use": "@vercel/node"
+      "source": "/api/proxy",
+      "destination": "api/proxy.js"
     },
     {
-      "src": "pubspec.yaml",
-      "use": "vercel-flutter-builder",
-      "config": { "channel": "stable" }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/proxy",
-      "dest": "api/proxy.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "build/web/$1"
+      "source": "/(.*)",
+      "destination": "/$1"
     }
   ]
 }
