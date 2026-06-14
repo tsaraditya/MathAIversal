@@ -17,8 +17,8 @@ flutter config --enable-web
 # 5. Fetch dependencies
 flutter pub get
 
-# 6. Build the release static production web artifact files
-flutter build web --release
+# 6. Build the release static production web files with absolute base href routing
+flutter build web --release --base-href /
 
 # 7. Create a clean root public directory if it doesn't exist yet
 mkdir -p public
