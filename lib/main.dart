@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'dart:math' as math; // 🌟 Aliased to handle advanced scientific math configurations
+import 'dart:math'
+    as math; // 🌟 Aliased to handle advanced scientific math configurations
 import 'dart:io' show Directory, File;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -222,9 +223,25 @@ class _QuizScreenState extends State<QuizScreen> {
   List<bool> _revealedAnswersFlags = [];
   String _exportStatusMessage = "";
 
-  // 🌐 Proxied endpoint pointing to Vercel Node.js architecture
-  final String _aiUrl = '/api/proxy';
+  // 🌐 Smart routing logic: uses direct endpoints locally and secure serverless proxy in production
+  final String _aiUrl =
+      kIsWeb && !web_html.window.location.href.contains('localhost')
+      ? '/api/proxy'
+      : 'https://api.groq.com/openai/v1/chat/completions';
+
   final String _modelName = 'llama-3.3-70b-versatile';
+
+  // 🔑 Extract local environment variables injected via launch matrix maps safely
+  static const String _localApiKey = String.fromEnvironment('GROQ_API_KEY');
+
+  Map<String, String> _getHeaders() {
+    Map<String, String> baseHeaders = {'Content-Type': 'application/json'};
+    // If running on localhost, append the API authorization layer directly
+    if (_aiUrl.contains('api.groq.com')) {
+      baseHeaders['Authorization'] = 'Bearer $_localApiKey';
+    }
+    return baseHeaders;
+  }
 
   @override
   void initState() {
@@ -278,7 +295,7 @@ class _QuizScreenState extends State<QuizScreen> {
     try {
       final response = await http.post(
         Uri.parse(_aiUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: _getHeaders(),
         body: jsonEncode({
           "model": _modelName,
           "messages": [
@@ -296,8 +313,11 @@ class _QuizScreenState extends State<QuizScreen> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> rootObj = jsonDecode(response.body);
-        final String rawContent = rootObj['choices'][0]['message']['content'].trim();
-        final Map<String, dynamic> parsedJson = jsonDecode(rawContent);
+
+        // Handle variations between local direct Groq output and custom Vercel proxy output formatting
+        final String rawContent =
+            rootObj['choices'][0]['message']['content'] ?? '';
+        final Map<String, dynamic> parsedJson = jsonDecode(rawContent.trim());
         final List<dynamic> parsedList = parsedJson['questions'];
 
         setState(() {
@@ -314,7 +334,7 @@ class _QuizScreenState extends State<QuizScreen> {
     }
   }
 
-  Future<void> _exportToWord(bool includeAnswersOnly) async {
+  Future<void> _exportToWord(bool includeAnswers) async {
     if (_aiGeneratedExamQuestions.isEmpty) return;
     setState(() {
       _exportStatusMessage = "Compiling file architecture layer...";
@@ -322,24 +342,36 @@ class _QuizScreenState extends State<QuizScreen> {
 
     try {
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final String filename = includeAnswersOnly
-          ? "Exam_Answers_$timestamp.doc"
-          : "Exam_Questions_$timestamp.doc";
+      final String filename = includeAnswers
+          ? "Exam_With_Answers_$timestamp.doc"
+          : "Exam_Questions_Only_$timestamp.doc";
 
       StringBuffer htmlContent = StringBuffer();
       htmlContent.writeln(
         "<html><body><h1 style='color:#4A148C;font-family:Arial;'>Functional Maths Level 1 - Examination</h1>",
       );
+
       for (var q in _aiGeneratedExamQuestions) {
-        htmlContent.writeln(
-          "<p><b>Q${q['id']}. [${q['topic'] ?? 'Maths'}]</b></p>",
-        );
-        htmlContent.writeln("<p>${q['question'] ?? ''}</p>");
-        htmlContent.writeln(
-          includeAnswersOnly
-              ? "<p style='color:green;'><b>Answer:</b> ${q['answer'] ?? ''}</p><br/>"
-              : "<p>Answer Specification: _______________________</p><br/>",
-        );
+        // Pull the safe fallback keys matching our strict system prompt schema
+        final String questionId = q['id']?.toString() ?? '';
+        final String topicName = q['topic'] ?? 'General Maths';
+        final String questionText = q['question'] ?? '';
+        final String answerText = q['answer'] ?? 'N/A';
+
+        htmlContent.writeln("<p><b>Q$questionId. [$topicName]</b></p>");
+        htmlContent.writeln("<p>$questionText</p>");
+
+        // If includeAnswers is true, output the answer right under the text.
+        // If false, print a clean blank line for students to write on.
+        if (includeAnswers) {
+          htmlContent.writeln(
+            "<p style='color:green;'><b>Correct Answer:</b> $answerText</p><br/>",
+          );
+        } else {
+          htmlContent.writeln(
+            "<p style='color:#757575;'>Answer Specification: _______________________</p><br/>",
+          );
+        }
       }
       htmlContent.writeln("</body></html>");
 
@@ -363,6 +395,10 @@ class _QuizScreenState extends State<QuizScreen> {
       await Share.shareXFiles([
         XFile(file.path, mimeType: 'application/msword'),
       ]);
+
+      setState(() {
+        _exportStatusMessage = "Document shared successfully.";
+      });
     } catch (e) {
       setState(() {
         _exportStatusMessage = "Export routine broken.";
@@ -379,7 +415,7 @@ class _QuizScreenState extends State<QuizScreen> {
     try {
       final response = await http.post(
         Uri.parse(_aiUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: _getHeaders(),
         body: jsonEncode({
           "model": _modelName,
           "messages": [
@@ -574,7 +610,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                "Topic: ${_currentQuestion?.['topic'] ?? 'Loading Database...'}",
+                "Topic: ${_currentQuestion?['topic'] ?? 'Loading Database...'}",
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -585,7 +621,8 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 30),
             Text(
-              _currentQuestion?.['question'] ?? 'Preparing calculation platform...',
+              _currentQuestion?['question'] ??
+                  'Preparing calculation platform...',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
             ),
@@ -702,9 +739,23 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   ];
 
   bool _isAiTyping = false;
-  // 🌐 Proxied endpoint pointing to Vercel Node.js architecture
-  final String _aiUrl = '/api/proxy';
+
+  // 🌐 Smart routing logic mirrored here for consistency
+  final String _aiUrl =
+      kIsWeb && !web_html.window.location.href.contains('localhost')
+      ? '/api/proxy'
+      : 'https://api.groq.com/openai/v1/chat/completions';
+
   final String _modelName = 'llama-3.3-70b-versatile';
+  static const String _localApiKey = String.fromEnvironment('GROQ_API_KEY');
+
+  Map<String, String> _getHeaders() {
+    Map<String, String> baseHeaders = {'Content-Type': 'application/json'};
+    if (_aiUrl.contains('api.groq.com')) {
+      baseHeaders['Authorization'] = 'Bearer $_localApiKey';
+    }
+    return baseHeaders;
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -741,7 +792,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
       final response = await http.post(
         Uri.parse(_aiUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: _getHeaders(),
         body: jsonEncode({
           "model": _modelName,
           "messages": conversationPayload,
@@ -794,7 +845,9 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                 final message = _messages[index];
                 final bool isUser = message['role'] == 'user';
                 return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: isUser
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(
