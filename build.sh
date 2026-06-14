@@ -14,5 +14,8 @@ flutter config --enable-web
 # 4. Fetch dependencies
 flutter pub get
 
-# 5. Build the release static production web files with single-page-app compatibility
+# 5. Build the release static production web files
 flutter build web --release --base-href /
+
+# 6. Move the compiled assets directly to the root workspace folder so they sit flat
+cp -r build/web/* .

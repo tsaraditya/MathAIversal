@@ -7,7 +7,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/build/web/$1"
+      "destination": "/$1"
     }
   ]
 }
