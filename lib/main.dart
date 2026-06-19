@@ -224,8 +224,8 @@ class _QuizScreenState extends State<QuizScreen> {
   List<bool> _revealedAnswersFlags = [];
   String _exportStatusMessage = "";
 
-  // 🌐 Direct endpoint mapping bypassing localized relative proxy blocks
-  final String _aiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  // 🌐 Updated proxy mapping to communicate with Vercel backend natively
+  final String _aiUrl = '/api/proxy';
 
   final String _modelName = 'llama-3.3-70b-versatile';
 
@@ -746,8 +746,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   bool _isAiTyping = false;
 
-  // 🌐 Direct endpoint mapping bypassing localized relative proxy blocks
-  final String _aiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  // 🌐 Updated proxy mapping to communicate with Vercel backend natively
+  final String _aiUrl = '/api/proxy';
 
   final String _modelName = 'llama-3.3-70b-versatile';
   static const String _localApiKey = String.fromEnvironment('GROQ_API_KEY');
