@@ -1,22 +1,19 @@
 #!/bin/bash
 
-# 1. Clear out any previous partial system clones safely
+# 1. Clear out any previous framework files cleanly
 rm -rf flutter
 
-# 2. Clone the stable Flutter SDK branch cleanly
+# 2. Clone the stable Flutter SDK branch
 git clone https://github.com/flutter/flutter.git -b stable --depth 1
 
-# 3. Explicitly append the binary paths to the live system profile
+# 3. Append binary paths to the live system profile
 export PATH="$PATH:$(pwd)/flutter/bin"
 
-# 4. Turn off analytics to prevent terminal interactive question locks
-flutter --no-analytics config --no-analytics
+# 4. Turn off tracking metrics
+flutter config --no-analytics
 
-# 5. Explicitly activate web tracking constraints
-flutter config --enable-web
-
-# 6. Pre-download the compilation dependencies cleanly
+# 5. Fetch dependencies 
 flutter pub get
 
-# 7. Execute a clean build override
-flutter build web --release --web-renderer canvaskit
+# 6. Build web with standard release flags (Removing the strict renderer flag removes the 64 error)
+flutter build web --release
