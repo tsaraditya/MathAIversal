@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'dart:math'
     as math; // 🌟 Aliased to handle advanced scientific math configurations
-import 'dart:io' show Directory, File;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -302,7 +301,7 @@ class _QuizScreenState extends State<QuizScreen> {
             {
               "role": "system",
               "content":
-                  "You are an official UK Functional Skills Mathematics Level 1 exam writer. Return a valid json object containing a single root key named 'questions' which maps directly to an array of exactly 17 objects. Context seed: $freshContextSeed.",
+                  "You are an official UK Functional Skills Mathematics Level 1 exam writer. Return a valid json object containing a single root key named 'questions' which maps directly to an array of exactly 17 objects. Each question object MUST contain unique values for fields: 'id', 'topic', 'question', and 'answer'. Do not name the topic key general 'Maths'; use specific mathematical syllabus topic descriptors. Context seed: $freshContextSeed.",
             },
           ],
           "response_format": {"type": "json_object"},
@@ -324,9 +323,16 @@ class _QuizScreenState extends State<QuizScreen> {
           _aiGeneratedExamQuestions = parsedList;
           _revealedAnswersFlags = List<bool>.filled(parsedList.length, false);
         });
+      } else {
+        setState(() {
+          _exportStatusMessage = "Server Error: Code ${response.statusCode}";
+        });
       }
     } catch (e) {
-      // Intercept execution errors
+      setState(() {
+        _exportStatusMessage = "Failed to compile AI response blueprint.";
+      });
+      debugPrint("Exam studio connection failure: $e");
     } finally {
       setState(() {
         _isLoadingExam = false;
@@ -342,9 +348,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
     try {
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final String filename = includeAnswers
-          ? "Exam_With_Answers_$timestamp.doc"
-          : "Exam_Questions_Only_$timestamp.doc";
 
       StringBuffer htmlContent = StringBuffer();
       htmlContent.writeln(
@@ -352,17 +355,18 @@ class _QuizScreenState extends State<QuizScreen> {
       );
 
       for (var q in _aiGeneratedExamQuestions) {
-        // Pull the safe fallback keys matching our strict system prompt schema
         final String questionId = q['id']?.toString() ?? '';
-        final String topicName = q['topic'] ?? 'General Maths';
+        final String topicName =
+            q['topic'] ??
+            q['topicName'] ??
+            q['category'] ??
+            'General Syllabus Setup';
         final String questionText = q['question'] ?? '';
         final String answerText = q['answer'] ?? 'N/A';
 
         htmlContent.writeln("<p><b>Q$questionId. [$topicName]</b></p>");
         htmlContent.writeln("<p>$questionText</p>");
 
-        // If includeAnswers is true, output the answer right under the text.
-        // If false, print a clean blank line for students to write on.
         if (includeAnswers) {
           htmlContent.writeln(
             "<p style='color:green;'><b>Correct Answer:</b> $answerText</p><br/>",
@@ -375,29 +379,15 @@ class _QuizScreenState extends State<QuizScreen> {
       }
       htmlContent.writeln("</body></html>");
 
-      if (kIsWeb) {
-        final bytes = utf8.encode(htmlContent.toString());
-        final blob = web_html.Blob([bytes], 'application/msword');
-        final url = web_html.Url.createObjectUrlFromBlob(blob);
-        web_html.AnchorElement(href: url)
-          ..setAttribute("download", filename)
-          ..click();
-        web_html.Url.revokeObjectUrl(url);
-        setState(() {
-          _exportStatusMessage = "Document downloaded successfully.";
-        });
-        return;
-      }
+      // Robust base64 download pipeline bypassing virtual anchor DOM injection constraints
+      final bytes = utf8.encode(htmlContent.toString());
+      final base64Content = base64Encode(bytes);
 
-      final Directory tempDir = await getTemporaryDirectory();
-      final File file = File('${tempDir.path}/$filename');
-      await file.writeAsString(htmlContent.toString());
-      await Share.shareXFiles([
-        XFile(file.path, mimeType: 'application/msword'),
-      ]);
+      web_html.window.location.href =
+          'data:application/msword;base64,$base64Content';
 
       setState(() {
-        _exportStatusMessage = "Document shared successfully.";
+        _exportStatusMessage = "Document downloaded successfully.";
       });
     } catch (e) {
       setState(() {
@@ -524,8 +514,9 @@ class _QuizScreenState extends State<QuizScreen> {
                           child: Text(
                             _exportStatusMessage,
                             style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurpleAccent,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -537,6 +528,11 @@ class _QuizScreenState extends State<QuizScreen> {
                         itemCount: _aiGeneratedExamQuestions.length,
                         itemBuilder: (context, idx) {
                           final item = _aiGeneratedExamQuestions[idx];
+                          final String explicitTopic =
+                              item['topic'] ??
+                              item['topicName'] ??
+                              item['category'] ??
+                              'Syllabus Task';
                           return Card(
                             margin: const EdgeInsets.only(bottom: 10),
                             child: Padding(
@@ -545,7 +541,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "Q${item['id']}. [${item['topic'] ?? 'Maths'}]",
+                                    "Q${item['id'] ?? (idx + 1)}. [$explicitTopic]",
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.deepPurple,
@@ -585,11 +581,25 @@ class _QuizScreenState extends State<QuizScreen> {
                           );
                         },
                       ),
-                    ] else
+                    ] else ...[
                       const Text(
                         "Command the Cloud AI system to completely write a custom 17-question test layout.",
                         textAlign: TextAlign.center,
                       ),
+                      if (_exportStatusMessage.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            _exportStatusMessage,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                    ],
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: _generateAIExam,
@@ -740,7 +750,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   bool _isAiTyping = false;
 
-  // 🌐 Smart routing logic mirrored here for consistency
   final String _aiUrl =
       kIsWeb && !web_html.window.location.href.contains('localhost')
       ? '/api/proxy'
