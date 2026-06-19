@@ -12,6 +12,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:universal_html/html.dart' as web_html;
 
 void main() {
+  // Ensure the framework engine is fully bound to the browser canvas before drawing
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MathAIApp());
 }
 
@@ -222,11 +224,8 @@ class _QuizScreenState extends State<QuizScreen> {
   List<bool> _revealedAnswersFlags = [];
   String _exportStatusMessage = "";
 
-  // 🌐 Smart routing logic: uses direct endpoints locally and secure serverless proxy in production
-  final String _aiUrl =
-      kIsWeb && !web_html.window.location.href.contains('localhost')
-      ? '/api/proxy'
-      : 'https://api.groq.com/openai/v1/chat/completions';
+  // 🌐 Direct endpoint mapping bypassing localized relative proxy blocks
+  final String _aiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
   final String _modelName = 'llama-3.3-70b-versatile';
 
@@ -235,7 +234,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Map<String, String> _getHeaders() {
     Map<String, String> baseHeaders = {'Content-Type': 'application/json'};
-    // If running on localhost, append the API authorization layer directly
     if (_aiUrl.contains('api.groq.com')) {
       baseHeaders['Authorization'] = 'Bearer $_localApiKey';
     }
@@ -313,7 +311,6 @@ class _QuizScreenState extends State<QuizScreen> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> rootObj = jsonDecode(response.body);
 
-        // Handle variations between local direct Groq output and custom Vercel proxy output formatting
         final String rawContent =
             rootObj['choices'][0]['message']['content'] ?? '';
         final Map<String, dynamic> parsedJson = jsonDecode(rawContent.trim());
@@ -379,7 +376,6 @@ class _QuizScreenState extends State<QuizScreen> {
       }
       htmlContent.writeln("</body></html>");
 
-      // Robust base64 download pipeline bypassing virtual anchor DOM injection constraints
       final bytes = utf8.encode(htmlContent.toString());
       final base64Content = base64Encode(bytes);
 
@@ -750,10 +746,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   bool _isAiTyping = false;
 
-  final String _aiUrl =
-      kIsWeb && !web_html.window.location.href.contains('localhost')
-      ? '/api/proxy'
-      : 'https://api.groq.com/openai/v1/chat/completions';
+  // 🌐 Direct endpoint mapping bypassing localized relative proxy blocks
+  final String _aiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
   final String _modelName = 'llama-3.3-70b-versatile';
   static const String _localApiKey = String.fromEnvironment('GROQ_API_KEY');
