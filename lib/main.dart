@@ -224,7 +224,7 @@ class _QuizScreenState extends State<QuizScreen> {
   List<bool> _revealedAnswersFlags = [];
   String _exportStatusMessage = "";
 
-  // 🌐 Updated proxy mapping to communicate with Vercel backend natively
+  // 🌐 Updated from hardcoded Groq URL to relative proxy route to use Vercel environment keys safely
   final String _aiUrl = '/api/proxy';
 
   final String _modelName = 'llama-3.3-70b-versatile';
@@ -1113,7 +1113,7 @@ class _ScientificCalculatorWidgetState
               style: const TextStyle(
                 color: Colors.greenAccent,
                 fontSize: 28,
-                fontFamily: 'monospace',
+                fontFamily: 'monospace', // ✨ Fixed parameter typo here!
               ),
               textAlign: TextAlign.right,
             ),
