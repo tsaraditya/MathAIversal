@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/proxy",
-      "destination": "api/proxy.js"
+      "destination": "/api/proxy.js"
     },
     {
       "source": "/(.*)",
-      "destination": "/public/$1"
+      "destination": "/build/web/$1"
     }
   ]
 }
