@@ -227,7 +227,7 @@ class _QuizScreenState extends State<QuizScreen> {
   // 🌐 Updated from hardcoded Groq URL to relative proxy route to use Vercel environment keys safely
   final String _aiUrl = '/api/proxy';
 
-  final String _modelName = 'llama-3.3-70b-versatile';
+  final String _modelName = 'qwen/qwen3.6-27b';
 
   // 🔑 Extract local environment variables injected via launch matrix maps safely
   static const String _localApiKey = String.fromEnvironment('GROQ_API_KEY');
@@ -749,7 +749,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   // 🌐 Updated proxy mapping to communicate with Vercel backend natively
   final String _aiUrl = '/api/proxy';
 
-  final String _modelName = 'llama-3.3-70b-versatile';
+  final String _modelName = 'qwen/qwen3.6-27b';
   static const String _localApiKey = String.fromEnvironment('GROQ_API_KEY');
 
   Map<String, String> _getHeaders() {
